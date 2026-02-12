@@ -40,4 +40,202 @@
       margin-top: 18px;
       padding: 18px 16px;
       border: 1px solid #f3c6cf;
-      borde
+      border-radius: 18px;
+      background: #fffafb;
+      min-height: 92px;
+      display:flex; flex-direction:column; gap:8px;
+    }
+    .kicker{ font-size: 13px; color: var(--muted); }
+    .text{ font-size: 18px; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+    button{
+      border:0; border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 15px;
+      cursor:pointer;
+      box-shadow: 0 8px 18px rgba(0,0,0,.10);
+      transition: transform .08s ease;
+    }
+    button:active{ transform: translateY(1px); }
+    .primary{ background:#ff4d6d; color:white; }
+    .dark{ background:#111827; color:white; }
+    .ghost{ background:#ffe4ea; color:#111827; box-shadow:none; }
+    .footer{ margin-top: 18px; font-size: 13px; color: var(--muted); }
+    .dots{ display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; }
+    .dot{
+      width:8px; height:8px; border-radius:999px;
+      background:#f3c6cf;
+      opacity:.6;
+    }
+    .dot.on{ opacity:1; background:#ff4d6d; }
+    .hidden{ display:none; }
+    textarea{
+      width:100%;
+      margin-top:12px;
+      border-radius: 14px;
+      border: 1px solid #f3c6cf;
+      padding: 12px;
+      font-size: 14px;
+      resize: vertical;
+      min-height: 92px;
+      background:#fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="glow"></div>
+    <div class="badge">💌 <span id="toLine">for you</span></div>
+
+    <h1 id="title">A small thing I wanted to say</h1>
+    <p id="subtitle">Nothing dramatic — just some honest reasons I like talking to you.</p>
+
+    <div class="reason" aria-live="polite">
+      <div class="kicker" id="counter">Reason 1 of 10</div>
+      <div class="text" id="reasonText">Loading…</div>
+    </div>
+
+    <div class="dots" id="dots"></div>
+
+    <div class="row">
+      <button class="dark" id="prevBtn">←</button>
+      <button class="primary" id="nextBtn">Next →</button>
+      <button class="ghost" id="shuffleBtn">Shuffle</button>
+      <button class="ghost" id="shareBtn">Copy a cute text</button>
+    </div>
+
+    <div id="shareBox" class="hidden">
+      <textarea id="shareText" readonly></textarea>
+      <div class="row">
+        <button class="primary" id="copyBtn">Copy</button>
+        <button class="ghost" id="closeShareBtn">Close</button>
+      </div>
+    </div>
+
+    <div class="footer">made with ✨ and good intentions</div>
+  </div>
+
+  <script>
+    // ===== PERSONALIZE THESE =====
+    const herName = "Her Name";
+    const yourName = "Your Name";
+
+    const reasons = [
+      "You make everyday conversations feel easy.",
+      "Your sense of humor is genuinely dangerous (in a good way).",
+      "I like how you think — you notice stuff most people don’t.",
+      "Talking to you is a highlight, even on busy days.",
+      "You’re equal parts sweet and real, and I respect that.",
+      "You somehow make me want to be funnier. It’s annoying.",
+      "You’ve got great taste. (Yes, this is me complimenting myself too.)",
+      "I like how you can be chill but still be intentional.",
+      "You’re easy to root for — it’s hard not to.",
+      "I just really like talking to you. That’s the whole thing."
+    ];
+
+    // Optional: set this to true if you want it to autoplay like a slideshow
+    const autoAdvance = false;
+    const autoMs = 4500;
+    // ============================
+
+    document.getElementById("toLine").textContent = `for ${herName}`;
+
+    let idx = 0;
+
+    const reasonText = document.getElementById("reasonText");
+    const counter = document.getElementById("counter");
+    const dots = document.getElementById("dots");
+
+    function renderDots() {
+      dots.innerHTML = "";
+      reasons.forEach((_, i) => {
+        const d = document.createElement("div");
+        d.className = "dot" + (i === idx ? " on" : "");
+        d.addEventListener("click", () => { idx = i; render(); });
+        dots.appendChild(d);
+      });
+    }
+
+    function render() {
+      counter.textContent = `Reason ${idx + 1} of ${reasons.length}`;
+      reasonText.textContent = reasons[idx];
+      renderDots();
+    }
+
+    function next() {
+      idx = (idx + 1) % reasons.length;
+      render();
+    }
+    function prev() {
+      idx = (idx - 1 + reasons.length) % reasons.length;
+      render();
+    }
+
+    document.getElementById("nextBtn").addEventListener("click", next);
+    document.getElementById("prevBtn").addEventListener("click", prev);
+
+    document.getElementById("shuffleBtn").addEventListener("click", () => {
+      for (let i = reasons.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [reasons[i], reasons[j]] = [reasons[j], reasons[i]];
+      }
+      idx = 0;
+      render();
+      pop(22);
+    });
+
+    // Share box
+    const shareBox = document.getElementById("shareBox");
+    const shareText = document.getElementById("shareText");
+
+    document.getElementById("shareBtn").addEventListener("click", () => {
+      const top3 = [reasons[idx], reasons[(idx+1)%reasons.length], reasons[(idx+2)%reasons.length]];
+      shareText.value =
+`hey ${herName} 😄
+this is random but i made a tiny page with a few reasons i like talking to you.
+
+one of them:
+“${top3[0]}”
+
+- ${yourName}`;
+      shareBox.classList.remove("hidden");
+    });
+
+    document.getElementById("closeShareBtn").addEventListener("click", () => {
+      shareBox.classList.add("hidden");
+    });
+
+    document.getElementById("copyBtn").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(shareText.value);
+        shareText.value = shareText.value + "\n\n(copied ✅)";
+      } catch {
+        shareText.value = shareText.value + "\n\n(copy didn’t work — just select & copy manually)";
+      }
+    });
+
+    // Tiny sparkle burst
+    function pop(count=25) {
+      for (let i = 0; i < count; i++) {
+        const s = document.createElement("div");
+        s.textContent = Math.random() < 0.5 ? "💗" : "✨";
+        s.style.position = "fixed";
+        s.style.left = (Math.random()*100) + "vw";
+        s.style.top = (Math.random()*20 + 5) + "vh";
+        s.style.fontSize = (12 + Math.random()*18) + "px";
+        s.style.transition = "transform 900ms ease, opacity 900ms ease";
+        s.style.zIndex = 9999;
+        document.body.appendChild(s);
+        requestAnimationFrame(() => {
+          s.style.transform = `translate(${(Math.random()*220-110)}px, ${(Math.random()*220)}px) rotate(${Math.random()*360}deg)`;
+          s.style.opacity = "0";
+        });
+        setTimeout(() => s.remove(), 920);
+      }
+    }
+
+    render();
+    if (autoAdvance) setInterval(next, autoMs);
+  </script>
+</body>
+</html>
