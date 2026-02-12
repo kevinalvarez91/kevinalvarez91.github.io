@@ -2,240 +2,524 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>💌</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Tiffany 💌</title>
   <style>
-    :root { --bg:#fff5f7; --card:#ffffff; --text:#111827; --muted:#6b7280; }
-    * { box-sizing: border-box; }
-    body{
-      margin:0; min-height:100vh; display:grid; place-items:center;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
-      background: radial-gradient(circle at top, #ffe4ea, var(--bg));
+    :root {
+      --bg-color: #fff0f3;
+      --accent: #ff4d6d;
+      --card-bg: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      
+      /* Cat dimensions */
+      --cat-size: 60px;
+      --track-padding: -30px; /* Negative pushes it outside */
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 50% 0%, #ff8fa3, var(--bg-color));
       color: var(--text);
-      padding: 18px;
+      overflow: hidden;
+      padding: 40px; /* Extra padding so cat doesn't get cut off */
     }
-    .card{
-      width:min(620px, 96vw);
-      background: var(--card);
-      border-radius: 24px;
-      padding: 26px 22px;
-      box-shadow: 0 14px 34px rgba(0,0,0,.12);
-      position:relative;
-      overflow:hidden;
+
+    /* --- Particle Effects (Roses/Hearts) --- */
+    .particle {
+      position: absolute;
+      pointer-events: none;
+      font-size: 24px;
+      z-index: 100;
+      animation: float-out 1s ease-out forwards;
     }
-    .glow{
-      position:absolute; inset:-80px -80px auto auto;
-      width:220px; height:220px; border-radius:999px;
-      background: radial-gradient(circle, rgba(255,77,109,.25), transparent 60%);
-      filter: blur(2px);
+
+    @keyframes float-out {
+      0% { transform: translate(0, 0) scale(0.5); opacity: 1; }
+      100% { transform: translate(var(--tx), var(--ty)) scale(1.2) rotate(var(--rot)); opacity: 0; }
     }
-    .badge{
-      display:inline-flex; gap:8px; align-items:center;
-      background:#fff0f3; padding:8px 12px; border-radius:999px;
-      font-size:14px;
+
+    /* --- The Shell (Main Container) --- */
+    .shell {
+      position: relative;
+      width: min(500px, 85vw);
+      aspect-ratio: 4/5;
+      max-height: 700px;
+      background: var(--card-bg);
+      border-radius: 32px;
+      box-shadow: 
+        0 20px 40px -10px rgba(255, 77, 109, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
     }
-    h1{ margin:14px 0 6px; font-size:26px; }
-    p{ margin:0; line-height:1.5; color:#374151; }
-    .reason{
-      margin-top: 18px;
-      padding: 18px 16px;
-      border: 1px solid #f3c6cf;
-      border-radius: 18px;
-      background: #fffafb;
-      min-height: 92px;
-      display:flex; flex-direction:column; gap:8px;
+
+    /* --- The Walking Cat (Outside) --- */
+    .cat-track {
+      position: absolute;
+      /* Negative inset makes it larger than the shell */
+      inset: var(--track-padding); 
+      pointer-events: none;
+      z-index: 20; /* Sits on top of the card edge */
+      border-radius: 40px; /* Slightly larger radius */
     }
-    .kicker{ font-size: 13px; color: var(--muted); }
-    .text{ font-size: 18px; }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
-    button{
-      border:0; border-radius: 14px;
-      padding: 12px 14px;
-      font-size: 15px;
-      cursor:pointer;
-      box-shadow: 0 8px 18px rgba(0,0,0,.10);
-      transition: transform .08s ease;
+
+    .cat-wrapper {
+      position: absolute;
+      width: var(--cat-size);
+      height: var(--cat-size);
+      will-change: transform;
+      animation: walkPerimeter 16s linear infinite;
     }
-    button:active{ transform: translateY(1px); }
-    .primary{ background:#ff4d6d; color:white; }
-    .dark{ background:#111827; color:white; }
-    .ghost{ background:#ffe4ea; color:#111827; box-shadow:none; }
-    .footer{ margin-top: 18px; font-size: 13px; color: var(--muted); }
-    .dots{ display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; }
-    .dot{
-      width:8px; height:8px; border-radius:999px;
-      background:#f3c6cf;
-      opacity:.6;
+
+    .cat {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15));
     }
-    .dot.on{ opacity:1; background:#ff4d6d; }
-    .hidden{ display:none; }
-    textarea{
-      width:100%;
-      margin-top:12px;
-      border-radius: 14px;
-      border: 1px solid #f3c6cf;
-      padding: 12px;
+    
+    .cat .body { animation: bounce 0.4s infinite alternate ease-in-out; transform-origin: center bottom; }
+    .cat .tail { animation: tailWag 1s infinite alternate ease-in-out; transform-origin: 10px 50px; }
+    .cat .leg-front { animation: walkLeg 0.4s infinite alternate ease-in-out; }
+    .cat .leg-back  { animation: walkLeg 0.4s infinite alternate-reverse ease-in-out; }
+
+    /* Walking logic for OUTSIDE:
+       The cat moves from 0 to 100% of the track (which is bigger than the card).
+       We use calc() to keep it strictly on the rectangular path.
+    */
+    @keyframes walkPerimeter {
+      /* Top Edge (Left to Right) */
+      0%   { left: 0; top: 0; transform: rotate(0deg); }
+      22%  { left: calc(100% - var(--cat-size)); top: 0; transform: rotate(0deg); }
+      
+      /* Turn Corner 1 */
+      25%  { left: calc(100% - var(--cat-size)); top: 0; transform: rotate(90deg); }
+      
+      /* Right Edge (Top to Bottom) */
+      47%  { left: calc(100% - var(--cat-size)); top: calc(100% - var(--cat-size)); transform: rotate(90deg); }
+      
+      /* Turn Corner 2 */
+      50%  { left: calc(100% - var(--cat-size)); top: calc(100% - var(--cat-size)); transform: rotate(180deg); }
+      
+      /* Bottom Edge (Right to Left) */
+      72%  { left: 0; top: calc(100% - var(--cat-size)); transform: rotate(180deg); }
+      
+      /* Turn Corner 3 */
+      75%  { left: 0; top: calc(100% - var(--cat-size)); transform: rotate(270deg); }
+      
+      /* Left Edge (Bottom to Top) */
+      97%  { left: 0; top: 0; transform: rotate(270deg); }
+      
+      /* Finish Loop */
+      100% { left: 0; top: 0; transform: rotate(360deg); }
+    }
+
+    @keyframes bounce { to { transform: translateY(-3px); } }
+    @keyframes tailWag { from { transform: rotate(-10deg); } to { transform: rotate(15deg); } }
+    @keyframes walkLeg { from { transform: translateY(0); } to { transform: translateY(-4px) translateX(2px); } }
+
+
+    /* --- Header & Footer --- */
+    .header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .badge {
+      background: #ffe4e9;
+      color: #d6336c;
+      padding: 8px 16px;
+      border-radius: 99px;
+      font-weight: 600;
       font-size: 14px;
-      resize: vertical;
-      min-height: 92px;
-      background:#fff;
+      letter-spacing: 0.5px;
     }
+    .footer {
+      font-size: 14px;
+      color: var(--muted);
+      opacity: 0.8;
+      margin-top: 10px;
+    }
+
+    /* --- Flashcard Stage --- */
+    .stage {
+      flex: 1;
+      width: 100%;
+      display: grid;
+      place-items: center;
+      perspective: 1000px;
+    }
+
+    .card-wrap {
+      width: 100%;
+      height: 280px;
+      position: relative;
+      cursor: grab;
+      transform-style: preserve-3d;
+    }
+    .card-wrap:active { cursor: grabbing; }
+
+    .flashcard {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      border-radius: 24px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+    
+    .flashcard.flipped { transform: rotateY(180deg); }
+
+    .face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      border-radius: 24px;
+      background: #fff;
+      border: 2px solid #fff0f3;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 30px;
+      text-align: center;
+      user-select: none;
+    }
+
+    .face.front {
+      background: linear-gradient(135deg, #fff5f7 0%, #fff 100%);
+    }
+    
+    .face.back {
+      transform: rotateY(180deg);
+      background: #fff;
+      border-color: #ffd6e0;
+    }
+
+    /* Content styling */
+    .label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #ff4d6d;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    
+    .main-text {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.5;
+      color: #333;
+    }
+
+    .hint {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #9ca3af;
+      background: #f3f4f6;
+      padding: 6px 12px;
+      border-radius: 20px;
+    }
+
+    /* --- Progress Dots --- */
+    .dots {
+      display: flex;
+      gap: 6px;
+      margin-top: 20px;
+      justify-content: center;
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+      background: #ffd6e0;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+    }
+    .dot.active {
+      background: #ff4d6d;
+      transform: scale(1.3);
+    }
+
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="glow"></div>
-    <div class="badge">💌 <span id="toLine">for you</span></div>
 
-    <h1 id="title">A small thing I wanted to say</h1>
-    <p id="subtitle">Nothing dramatic — just some honest reasons I like talking to you.</p>
-
-    <div class="reason" aria-live="polite">
-      <div class="kicker" id="counter">Reason 1 of 10</div>
-      <div class="text" id="reasonText">Loading…</div>
-    </div>
-
-    <div class="dots" id="dots"></div>
-
-    <div class="row">
-      <button class="dark" id="prevBtn">←</button>
-      <button class="primary" id="nextBtn">Next →</button>
-      <button class="ghost" id="shuffleBtn">Shuffle</button>
-      <button class="ghost" id="shareBtn">Copy a cute text</button>
-    </div>
-
-    <div id="shareBox" class="hidden">
-      <textarea id="shareText" readonly></textarea>
-      <div class="row">
-        <button class="primary" id="copyBtn">Copy</button>
-        <button class="ghost" id="closeShareBtn">Close</button>
+  <div class="shell">
+    
+    <div class="cat-track">
+      <div class="cat-wrapper">
+        <svg class="cat" viewBox="0 0 100 100">
+          <g class="tail">
+            <path d="M85 75 C 95 65, 95 40, 80 45" fill="none" stroke="#1f2937" stroke-width="6" stroke-linecap="round" />
+          </g>
+          <g class="leg-back">
+             <ellipse cx="35" cy="80" rx="6" ry="8" fill="#1f2937"/>
+          </g>
+          <g class="leg-back" style="transform: translateX(35px)">
+             <ellipse cx="35" cy="80" rx="6" ry="8" fill="#1f2937"/>
+          </g>
+          <g class="body">
+            <path d="M20 70 Q 20 30, 50 30 Q 80 30, 80 70 Z" fill="#1f2937"/>
+            <rect x="20" y="60" width="60" height="25" fill="#1f2937" rx="10"/>
+            <path d="M25 35 L 20 15 L 40 30 Z" fill="#1f2937"/>
+            <path d="M75 35 L 80 15 L 60 30 Z" fill="#1f2937"/>
+            <circle cx="40" cy="45" r="3" fill="#fff"/>
+            <circle cx="60" cy="45" r="3" fill="#fff"/>
+            <path d="M48 52 Q 50 54, 52 52" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <ellipse cx="35" cy="50" rx="3" ry="2" fill="#ff4d6d" opacity="0.4"/>
+            <ellipse cx="65" cy="50" rx="3" ry="2" fill="#ff4d6d" opacity="0.4"/>
+          </g>
+          <g class="leg-front">
+             <ellipse cx="35" cy="82" rx="6" ry="8" fill="#1f2937"/>
+          </g>
+          <g class="leg-front" style="transform: translateX(35px)">
+             <ellipse cx="35" cy="82" rx="6" ry="8" fill="#1f2937"/>
+          </g>
+        </svg>
       </div>
     </div>
 
-    <div class="footer">made with ✨ and good intentions</div>
+    <div class="header">
+      <div class="badge">To <span id="herNameDisplay">Tiffany</span></div>
+      <div class="badge" style="background:white; border:1px solid #ffe4e9">Swipe ↔</div>
+    </div>
+
+    <div class="stage">
+      <div class="card-wrap" id="cardWrap">
+        <div class="flashcard" id="flashcard">
+          
+          <div class="face front">
+            <div class="label" id="counter">Reason 1</div>
+            <div class="main-text">I like talking to you because...</div>
+            <div class="hint">Tap to flip</div>
+          </div>
+
+          <div class="face back">
+            <div class="label">✨</div>
+            <div class="main-text" id="reasonText">...</div>
+            <div class="hint">Swipe for next</div>
+          </div>
+
+        </div>
+      </div>
+      <div class="dots" id="dots"></div>
+    </div>
+
+    <div class="footer">from <span id="yourNameDisplay">kevin</span></div>
   </div>
 
   <script>
-    // ===== PERSONALIZE THESE =====
-    const herName = "Her Name";
-    const yourName = "Your Name";
+    // --- Configuration ---
+    const config = {
+      herName: "tiffany",
+      yourName: "kevin",
+      reasons: [
+        "You make everyday conversations feel easy.",
+        "Your sense of humor is genuinely dangerous (in a good way).",
+        "I like how you think — you notice stuff most people don’t.",
+        "Talking to you is a highlight, even on busy days.",
+        "You’re equal parts sweet and real, and I respect that.",
+        "You somehow make me want to be funnier. It’s annoying.",
+        "You’ve got great taste. (Yes, this is me complimenting myself too.)",
+        "I like how you can be chill but still be intentional.",
+        "You’re easy to root for — it’s hard not to.",
+        "I just really like talking to you. That’s the whole thing."
+      ]
+    };
 
-    const reasons = [
-      "You make everyday conversations feel easy.",
-      "Your sense of humor is genuinely dangerous (in a good way).",
-      "I like how you think — you notice stuff most people don’t.",
-      "Talking to you is a highlight, even on busy days.",
-      "You’re equal parts sweet and real, and I respect that.",
-      "You somehow make me want to be funnier. It’s annoying.",
-      "You’ve got great taste. (Yes, this is me complimenting myself too.)",
-      "I like how you can be chill but still be intentional.",
-      "You’re easy to root for — it’s hard not to.",
-      "I just really like talking to you. That’s the whole thing."
-    ];
+    // --- State ---
+    let currentIndex = 0;
+    
+    // --- Elements ---
+    const els = {
+      cardWrap: document.getElementById('cardWrap'),
+      card: document.getElementById('flashcard'),
+      reasonText: document.getElementById('reasonText'),
+      counter: document.getElementById('counter'),
+      dots: document.getElementById('dots'),
+      herName: document.getElementById('herNameDisplay'),
+      yourName: document.getElementById('yourNameDisplay')
+    };
 
-    // Optional: set this to true if you want it to autoplay like a slideshow
-    const autoAdvance = false;
-    const autoMs = 4500;
-    // ============================
+    // --- Init ---
+    els.herName.textContent = config.herName;
+    els.yourName.textContent = config.yourName;
+    renderDots();
+    updateCard();
 
-    document.getElementById("toLine").textContent = `for ${herName}`;
-
-    let idx = 0;
-
-    const reasonText = document.getElementById("reasonText");
-    const counter = document.getElementById("counter");
-    const dots = document.getElementById("dots");
-
+    // --- Core Functions ---
     function renderDots() {
-      dots.innerHTML = "";
-      reasons.forEach((_, i) => {
-        const d = document.createElement("div");
-        d.className = "dot" + (i === idx ? " on" : "");
-        d.addEventListener("click", () => { idx = i; render(); });
-        dots.appendChild(d);
+      els.dots.innerHTML = '';
+      config.reasons.forEach((_, i) => {
+        const d = document.createElement('div');
+        d.className = `dot ${i === currentIndex ? 'active' : ''}`;
+        els.dots.appendChild(d);
       });
     }
 
-    function render() {
-      counter.textContent = `Reason ${idx + 1} of ${reasons.length}`;
-      reasonText.textContent = reasons[idx];
-      renderDots();
+    function updateCard() {
+      els.counter.textContent = `Reason ${currentIndex + 1}`;
+      els.reasonText.textContent = config.reasons[currentIndex];
+      
+      document.querySelectorAll('.dot').forEach((d, i) => {
+        d.classList.toggle('active', i === currentIndex);
+      });
+
+      els.card.classList.remove('flipped');
     }
 
-    function next() {
-      idx = (idx + 1) % reasons.length;
-      render();
-    }
-    function prev() {
-      idx = (idx - 1 + reasons.length) % reasons.length;
-      render();
-    }
-
-    document.getElementById("nextBtn").addEventListener("click", next);
-    document.getElementById("prevBtn").addEventListener("click", prev);
-
-    document.getElementById("shuffleBtn").addEventListener("click", () => {
-      for (let i = reasons.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [reasons[i], reasons[j]] = [reasons[j], reasons[i]];
-      }
-      idx = 0;
-      render();
-      pop(22);
-    });
-
-    // Share box
-    const shareBox = document.getElementById("shareBox");
-    const shareText = document.getElementById("shareText");
-
-    document.getElementById("shareBtn").addEventListener("click", () => {
-      const top3 = [reasons[idx], reasons[(idx+1)%reasons.length], reasons[(idx+2)%reasons.length]];
-      shareText.value =
-`hey ${herName} 😄
-this is random but i made a tiny page with a few reasons i like talking to you.
-
-one of them:
-“${top3[0]}”
-
-- ${yourName}`;
-      shareBox.classList.remove("hidden");
-    });
-
-    document.getElementById("closeShareBtn").addEventListener("click", () => {
-      shareBox.classList.add("hidden");
-    });
-
-    document.getElementById("copyBtn").addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(shareText.value);
-        shareText.value = shareText.value + "\n\n(copied ✅)";
-      } catch {
-        shareText.value = shareText.value + "\n\n(copy didn’t work — just select & copy manually)";
-      }
-    });
-
-    // Tiny sparkle burst
-    function pop(count=25) {
+    function spawnParticles(type, x, y) {
+      const count = type === 'rose' ? 8 : 12;
+      const emojis = type === 'rose' ? ['🌹', '🌸', '🌺'] : ['✨', '💖', '💝', '💕'];
+      
       for (let i = 0; i < count; i++) {
-        const s = document.createElement("div");
-        s.textContent = Math.random() < 0.5 ? "💗" : "✨";
-        s.style.position = "fixed";
-        s.style.left = (Math.random()*100) + "vw";
-        s.style.top = (Math.random()*20 + 5) + "vh";
-        s.style.fontSize = (12 + Math.random()*18) + "px";
-        s.style.transition = "transform 900ms ease, opacity 900ms ease";
-        s.style.zIndex = 9999;
-        document.body.appendChild(s);
-        requestAnimationFrame(() => {
-          s.style.transform = `translate(${(Math.random()*220-110)}px, ${(Math.random()*220)}px) rotate(${Math.random()*360}deg)`;
-          s.style.opacity = "0";
-        });
-        setTimeout(() => s.remove(), 920);
+        const el = document.createElement('div');
+        el.className = 'particle';
+        el.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+        
+        // Random spread
+        const angle = Math.random() * Math.PI * 2;
+        const velocity = 100 + Math.random() * 150;
+        const tx = Math.cos(angle) * velocity;
+        const ty = Math.sin(angle) * velocity;
+        const rot = Math.random() * 360;
+        
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        el.style.setProperty('--tx', `${tx}px`);
+        el.style.setProperty('--ty', `${ty}px`);
+        el.style.setProperty('--rot', `${rot}deg`);
+        
+        document.body.appendChild(el);
+        
+        // Cleanup
+        setTimeout(() => el.remove(), 1000);
       }
     }
 
-    render();
-    if (autoAdvance) setInterval(next, autoMs);
+    function nextCard() {
+      currentIndex = (currentIndex + 1) % config.reasons.length;
+      animateSwap('left');
+    }
+
+    function prevCard() {
+      currentIndex = (currentIndex - 1 + config.reasons.length) % config.reasons.length;
+      animateSwap('right');
+    }
+
+    function animateSwap(dir) {
+      // Trigger Roses
+      const rect = els.card.getBoundingClientRect();
+      const originX = dir === 'left' ? rect.right : rect.left;
+      const originY = rect.top + rect.height / 2;
+      spawnParticles('rose', originX, originY);
+
+      const xOff = dir === 'left' ? -20 : 20;
+      els.card.style.transition = "transform 0.2s, opacity 0.2s";
+      els.card.style.transform = `translateX(${xOff}px) scale(0.9)`;
+      els.card.style.opacity = '0';
+
+      setTimeout(() => {
+        updateCard();
+        els.card.style.transition = 'none';
+        els.card.style.transform = `translateX(${dir === 'left' ? 20 : -20}px) scale(0.9)`;
+        
+        requestAnimationFrame(() => {
+           els.card.style.transition = "transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s";
+           els.card.style.opacity = '1';
+           els.card.style.transform = "translateX(0) scale(1)";
+        });
+      }, 200);
+    }
+
+    // --- Input Handling ---
+    
+    // Tap to Flip
+    els.cardWrap.addEventListener('click', (e) => {
+      if (isDragging) return;
+      els.card.classList.toggle('flipped');
+      
+      // Trigger Hearts only if flipping to back
+      if (els.card.classList.contains('flipped')) {
+        spawnParticles('heart', e.clientX, e.clientY);
+      }
+    });
+
+    // Drag / Swipe Logic
+    let startX = 0;
+    let isDragging = false;
+    let isPressed = false;
+
+    const startDrag = (x) => {
+      isPressed = true;
+      isDragging = false;
+      startX = x;
+      els.card.style.transition = 'none';
+    };
+
+    const moveDrag = (x) => {
+      if (!isPressed) return;
+      const dx = x - startX;
+      if (Math.abs(dx) > 5) isDragging = true;
+      
+      const rot = dx * 0.05;
+      els.card.style.transform = `translateX(${dx}px) rotate(${rot}deg)` + 
+        (els.card.classList.contains('flipped') ? ' rotateY(180deg)' : '');
+    };
+
+    const endDrag = (x) => {
+      if (!isPressed) return;
+      isPressed = false;
+      
+      const dx = x - startX;
+      const threshold = 100;
+
+      if (Math.abs(dx) > threshold) {
+        if (dx > 0) prevCard();
+        else nextCard();
+      } else {
+        els.card.style.transition = "transform 0.4s ease";
+        els.card.style.transform = els.card.classList.contains('flipped') ? 'rotateY(180deg)' : '';
+      }
+    };
+
+    // Touch Events
+    els.cardWrap.addEventListener('touchstart', e => startDrag(e.touches[0].clientX));
+    els.cardWrap.addEventListener('touchmove', e => moveDrag(e.touches[0].clientX));
+    els.cardWrap.addEventListener('touchend', e => endDrag(e.changedTouches[0].clientX));
+
+    // Mouse Events
+    els.cardWrap.addEventListener('mousedown', e => { e.preventDefault(); startDrag(e.clientX); });
+    window.addEventListener('mousemove', e => moveDrag(e.clientX));
+    window.addEventListener('mouseup', e => endDrag(e.clientX));
+    
+    // Keyboard Support
+    window.addEventListener('keydown', e => {
+      const rect = els.card.getBoundingClientRect();
+      if (e.key === 'ArrowRight') nextCard();
+      if (e.key === 'ArrowLeft') prevCard();
+      if (e.key === ' ' || e.key === 'Enter') {
+         els.card.classList.toggle('flipped');
+         if (els.card.classList.contains('flipped')) {
+            spawnParticles('heart', rect.left + rect.width/2, rect.top + rect.height/2);
+         }
+      }
+    });
+
   </script>
 </body>
 </html>
