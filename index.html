@@ -63,6 +63,37 @@ display: flex;
 	 justify-content: space-between;
 	 z-index: 10;
 }
+/* --- Pop-up image layer (inside the white shell, behind content) --- */
+.pop-layer{
+  position:absolute;
+  inset: 0;
+  overflow: hidden;      /* hide below/edges so it feels like it comes from under */
+  z-index: 5;            /* behind header/card/footer (which are z-index 10+ in your layout) */
+  pointer-events:none;
+  border-radius: 32px;   /* match .shell so it clips nicely */
+}
+
+/* Each popping image */
+.pop-pic{
+  position:absolute;
+  width: 92px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(0,0,0,.18);
+  opacity: 0;
+  transform: translate(-50%, 0) scale(var(--s, 1)) rotate(var(--r, 0deg));
+  animation: popUp 1400ms ease-out forwards;
+  filter: saturate(1.05);
+}
+
+/* Pop from “under” the container: starts below bottom, rises, fades */
+@keyframes popUp{
+  0%   { opacity: 0; transform: translate(-50%, 40px)  scale(calc(var(--s, 1) * .92)) rotate(var(--r, 0deg)); }
+  12%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, calc(-1 * var(--rise, 240px))) scale(var(--s, 1)) rotate(var(--r, 0deg)); }
+}
 
 /* --- The Walking Cat (Outside) --- */
 .cat-track {
@@ -272,7 +303,7 @@ transform: scale(1.3);
 <body>
 
 <div class="shell">
-
+<div class="pop-layer" id="popLayer" aria-hidden="true"></div>
 <div class="cat-track">
 <div class="cat-wrapper" id="catWrapper">
 <svg class="cat" viewBox="0 0 100 100">
@@ -317,7 +348,7 @@ transform: scale(1.3);
 
 <div class="face front">
 <div class="label" id="counter">Reason 1</div>
-<div class="main-text">I like talking to you because...</div>
+<div class="main-text">I HATE talking to you because...</div>
 <div class="hint">Tap to flip</div>
 </div>
 
@@ -373,6 +404,58 @@ els.herName.textContent = config.herName;
 els.yourName.textContent = config.yourName;
 renderDots();
 updateCard();
+
+// --- Pop-up pictures (1 per second, random delay 0-1000ms) ---
+const popLayer = document.getElementById('popLayer');
+
+const popPics = [
+  "burglar.jpeg",
+  "crying1.jpeg",
+  "burittio.jpeg",
+  "crying2.jpeg",
+  "eyes.jpeg", 
+  "crying1.jpeg"
+];
+
+function spawnPopPic() {
+  const img = document.createElement('img');
+  img.className = 'pop-pic';
+
+  const file = popPics[Math.floor(Math.random() * popPics.length)];
+  img.src = `./${file}`;
+  img.alt = "";
+
+  img.onerror = () => {
+    console.warn("Image failed to load:", img.src);
+    img.remove();
+  };
+
+  // random position across the shell
+  const xPct = 10 + Math.random() * 80; // 10% .. 90%
+  img.style.left = `${xPct}%`;
+
+  // start just below bottom edge
+  img.style.bottom = `-40px`;
+
+  // random rise height, rotation, scale
+  const rise = 180 + Math.random() * 160;     // 180..340px
+  const rot  = -14 + Math.random() * 28;      // -14..+14 deg
+  const sc   = 0.9 + Math.random() * 0.35;    // 0.9..1.25
+
+  img.style.setProperty('--rise', `${rise}px`);
+  img.style.setProperty('--r', `${rot}deg`);
+  img.style.setProperty('--s', sc.toFixed(2));
+
+  popLayer.appendChild(img);
+  img.addEventListener('animationend', () => img.remove());
+}
+
+// Exactly 1 picture per second, with a random delay inside that second.
+setInterval(() => {
+  const delay = Math.floor(Math.random() * 1000); // 0..999ms
+  setTimeout(spawnPopPic, delay);
+}, 1000);
+
 
 // --- Flip sound (same directory) ---
 const flipSound = new Audio('./yippee-tbh.mp3');
