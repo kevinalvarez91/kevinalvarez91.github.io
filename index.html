@@ -63,6 +63,17 @@ display: flex;
 	 justify-content: space-between;
 	 z-index: 10;
 }
+.shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255,255,255,0.6), transparent 50%),
+    radial-gradient(circle at 80% 90%, rgba(255,100,120,0.15), transparent 50%);
+  pointer-events: none;
+}
+
 /* --- Pop-up image layer (inside the white shell, behind content) --- */
 .pop-layer{
   position:absolute;
@@ -298,6 +309,25 @@ background: #ff4d6d;
 transform: scale(1.3);
 }
 
+.bg-heart {
+  position: fixed;            /* important: fixed to viewport */
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  font-size: 34px;
+  z-index: 1;                 /* behind .shell (z-index:10), above background */
+  filter: blur(0.2px);
+  animation: driftUp var(--dur, 18s) linear forwards;
+  transform: translate(var(--x, 50vw), 110vh) scale(var(--s, 1));
+}
+
+@keyframes driftUp {
+  to {
+    transform: translate(calc(var(--x, 50vw) + var(--dx, 0px)), -20vh) scale(var(--s, 1));
+  }
+}
+
 </style>
 </head>
 <body>
@@ -416,6 +446,35 @@ const popPics = [
   "eyes.jpeg", 
   "crying1.jpeg"
 ];
+
+const ambientHearts = ["💗","💖","💕","💝","✨","🌸"];
+
+function spawnBgHeart() {
+  const h = document.createElement("div");
+  h.className = "bg-heart";
+  h.textContent = ambientHearts[Math.floor(Math.random() * ambientHearts.length)];
+
+  // Random horizontal position + slight sideways drift
+  const x = Math.random() * 100;               // vw
+  const dx = (Math.random() * 120 - 60);       // px
+  const s = 0.6 + Math.random() * 1.0;         // scale
+  const dur = 14 + Math.random() * 14;         // seconds
+
+  h.style.setProperty("--x", `${x}vw`);
+  h.style.setProperty("--dx", `${dx}px`);
+  h.style.setProperty("--s", s.toFixed(2));
+  h.style.setProperty("--dur", `${dur.toFixed(1)}s`);
+
+  document.body.appendChild(h);
+
+  h.addEventListener("animationend", () => h.remove());
+}
+
+// spawn a few immediately so you SEE it working
+for (let i = 0; i < 6; i++) setTimeout(spawnBgHeart, i * 400);
+
+// then keep spawning
+setInterval(spawnBgHeart, 1200);
 
 function spawnPopPic() {
   const img = document.createElement('img');
