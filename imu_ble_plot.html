@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BLE IMU Plotter (NUS-style UUIDs)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    button { padding: 10px 14px; font-size: 14px; cursor: pointer; }
+    code { background: #f3f3f3; padding: 2px 6px; border-radius: 6px; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 14px; }
+    @media (min-width: 900px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; }
+    .small { color: #666; font-size: 13px; }
+    canvas { width: 100% !important; height: 320px !important; }
+    .status { margin-left: 8px; font-weight: 600; }
+    .warn { color: #b45309; }
+    .ok { color: #166534; }
+    .bad { color: #991b1b; }
+  </style>
+</head>
+<body>
+  <h2>BLE IMU Plotter</h2>
+
+  <div class="row">
+    <button id="btnConnect">Connect</button>
+    <button id="btnDisconnect" disabled>Disconnect</button>
+    <button id="btnClear">Clear</button>
+    <label class="small">
+      Window (points):
+      <input id="windowPts" type="number" min="50" max="2000" value="300" style="width: 90px;">
+    </label>
+    <span id="status" class="status warn">Not connected</span>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Accelerometer (mg)</h3>
+      <canvas id="accelChart"></canvas>
+      <div class="small">Expected payload: <code>A:ax,ay,az</code> where values are in mg (integers).</div>
+      <div class="small">Latest: <code id="accelLast">—</code></div>
+    </div>
+    <div class="card">
+      <h3>Gyroscope (dps)</h3>
+      <canvas id="gyroChart"></canvas>
+      <div class="small">Expected payload: <code>G:gx,gy,gz</code> where values are in dps (integers).</div>
+      <div class="small">Latest: <code id="gyroLast">—</code></div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // --- Your UUIDs (Nordic UART style) ---
+  const UUID_SERVICE = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+  const UUID_ACCEL   = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // notify (you use for accel)
+  const UUID_GYRO    = "6e400004-b5a3-f393-e0a9-e50e24dcca9e"; // notify (you use for gyro)
+
+  // UI
+  const btnConnect = document.getElementById("btnConnect");
+  const btnDisconnect = document.getElementById("btnDisconnect");
+  const btnClear = document.getElementById("btnClear");
+  const statusEl = document.getElementById("status");
+  const accelLastEl = document.getElementById("accelLast");
+  const gyroLastEl = document.getElementById("gyroLast");
+  const windowPtsEl = document.getElementById("windowPts");
+
+  // BLE state
+  let device = null;
+  let server = null;
+  let accelChar = null;
+  let gyroChar = null;
+
+  // Data window
+  let t = 0; // sample index for x-axis
+
+  function setStatus(text, cls) {
+    statusEl.textContent = text;
+    statusEl.className = `status ${cls || ""}`;
+  }
+
+  function supportsWebBluetooth() {
+    return !!navigator.bluetooth;
+  }
+
+  // --- Chart helpers ---
+  function makeChart(canvasId, labelPrefix) {
+    const ctx = document.getElementById(canvasId).getContext("2d");
+    return new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: [
+          { label: `${labelPrefix} X`, data: [], borderWidth: 2, pointRadius: 0, tension: 0.2 },
+          { label: `${labelPrefix} Y`, data: [], borderWidth: 2, pointRadius: 0, tension: 0.2 },
+          { label: `${labelPrefix} Z`, data: [], borderWidth: 2, pointRadius: 0, tension: 0.2 },
+        ]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { title: { display: true, text: "sample" } },
+          y: { title: { display: true, text: "value" } }
+        },
+        plugins: {
+          legend: { display: true }
+        }
+      }
+    });
+  }
+
+  const accelChart = makeChart("accelChart", "A");
+  const gyroChart  = makeChart("gyroChart", "G");
+
+  function pushPoint(chart, xLabel, v0, v1, v2) {
+    const win = clamp(parseInt(windowPtsEl.value, 10) || 300, 50, 2000);
+
+    chart.data.labels.push(xLabel);
+    chart.data.datasets[0].data.push(v0);
+    chart.data.datasets[1].data.push(v1);
+    chart.data.datasets[2].data.push(v2);
+
+    // Trim to window
+    while (chart.data.labels.length > win) {
+      chart.data.labels.shift();
+      chart.data.datasets.forEach(ds => ds.data.shift());
+    }
+
+    chart.update("none");
+  }
+
+  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+
+  // --- Parsing ---
+  const textDecoder = new TextDecoder("utf-8");
+
+  function parsePayload(str) {
+    // Expected formats:
+    // "A:-12,34,998"
+    // "G:1,-2,0"
+    str = str.trim();
+
+    if (str.length < 3 || str[1] !== ":") return null;
+
+    const tag = str[0]; // 'A' or 'G'
+    const parts = str.slice(2).split(",");
+    if (parts.length !== 3) return null;
+
+    const nums = parts.map(p => parseInt(p.trim(), 10));
+    if (nums.some(n => !Number.isFinite(n))) return null;
+
+    return { tag, x: nums[0], y: nums[1], z: nums[2], raw: str };
+  }
+
+
+  function onAccelNotify(e) {
+    const val = e.target.value;
+    const str = textDecoder.decode(val);
+    const parsed = parsePayload(str);
+    if (!parsed || parsed.tag !== "A") return;
+
+    accelLastEl.textContent = parsed.raw;
+    pushPoint(accelChart, t, parsed.x, parsed.y, parsed.z);
+  }
+
+  function onGyroNotify(e) {
+    const val = e.target.value;
+    const str = textDecoder.decode(val);
+    const parsed = parsePayload(str);
+    if (!parsed || parsed.tag !== "G") return;
+
+    gyroLastEl.textContent = parsed.raw;
+    pushPoint(gyroChart, t, parsed.x, parsed.y, parsed.z);
+
+    // Increment sample index once per gyro packet (since you send accel then gyro)
+    t += 1;
+  }
+
+  // --- BLE connect/disconnect ---
+  async function connect() {
+    if (!supportsWebBluetooth()) {
+      setStatus("Web Bluetooth not available in this browser.", "bad");
+      alert("Web Bluetooth not supported here. Try Chrome/Edge on macOS or Android.");
+      return;
+    }
+
+    try {
+      setStatus("Requesting device…", "warn");
+
+      device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [UUID_SERVICE] }],
+        optionalServices: [UUID_SERVICE]
+      });
+
+      device.addEventListener("gattserverdisconnected", onDisconnected);
+
+      setStatus("Connecting GATT…", "warn");
+      server = await device.gatt.connect();
+
+      setStatus("Getting service…", "warn");
+      const service = await server.getPrimaryService(UUID_SERVICE);
+
+      setStatus("Getting characteristics…", "warn");
+      accelChar = await service.getCharacteristic(UUID_ACCEL);
+      gyroChar  = await service.getCharacteristic(UUID_GYRO);
+
+      setStatus("Starting notifications…", "warn");
+      accelChar.addEventListener("characteristicvaluechanged", onAccelNotify);
+      gyroChar.addEventListener("characteristicvaluechanged", onGyroNotify);
+
+      await accelChar.startNotifications();
+      await gyroChar.startNotifications();
+
+      btnConnect.disabled = true;
+      btnDisconnect.disabled = false;
+
+      setStatus(`Connected: ${device.name || "BLE device"}`, "ok");
+    } catch (err) {
+      console.error(err);
+      setStatus(`Connect failed: ${err?.message || err}`, "bad");
+    }
+  }
+
+  function disconnect() {
+    try {
+      if (device?.gatt?.connected) device.gatt.disconnect();
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+
+  function onDisconnected() {
+    btnConnect.disabled = false;
+    btnDisconnect.disabled = true;
+    setStatus("Disconnected", "warn");
+
+    // Cleanup listeners to avoid duplicates on reconnect
+    try {
+      accelChar?.removeEventListener("characteristicvaluechanged", onAccelNotify);
+      gyroChar?.removeEventListener("characteristicvaluechanged", onGyroNotify);
+    } catch {}
+    accelChar = null;
+    gyroChar = null;
+    server = null;
+  }
+
+  function clearCharts() {
+    t = 0;
+    accelLastEl.textContent = "—";
+    gyroLastEl.textContent = "—";
+
+    [accelChart, gyroChart].forEach(chart => {
+      chart.data.labels = [];
+      chart.data.datasets.forEach(ds => ds.data = []);
+      chart.update("none");
+    });
+  }
+
+  // Wire buttons
+  btnConnect.addEventListener("click", connect);
+  btnDisconnect.addEventListener("click", disconnect);
+  btnClear.addEventListener("click", clearCharts);
+
+})();
+</script>
+</body>
+</html>
